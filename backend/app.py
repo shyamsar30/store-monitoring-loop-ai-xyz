@@ -6,8 +6,10 @@ from sqlalchemy import text
 from flask import Flask, g
 from flask_restx import Api
 
+from backend.celery.config import celery_init_app
 from backend.config import Config
 from backend.database.connector import db_session
+from backend.api.endpoints import namespace
 
 
 def before_request():
@@ -34,7 +36,7 @@ def configure_endpoints(app):
         doc=Config.SWAGGER_UI_URL
     )
 
-    # restx_api.add_namespace(analytics_ns)
+    restx_api.add_namespace(namespace)
 
     restx_api.init_app(app)
 
@@ -56,15 +58,34 @@ def configure_database(app):
         db_session.remove()
 
 
+def configure_celery(app):
+
+    app.config.from_mapping(
+        CELERY=dict(
+            broker_url="redis://localhost",
+            result_backend="redis://localhost",
+            task_ignore_result=True,
+            broker_connection_retry_on_startup=True
+        ),
+    )
+
+    app.config.from_prefixed_env()
+    celery_init_app(app)
+
+
 # Setup Flask APP
 def init_app():
     app = Flask(Config.APP_NAME)
 
     configure_endpoints(app)
     configure_database(app)
+
+    configure_celery(app)
     
     return app
 
 
 # if __name__ == "__main__":
 app = init_app()
+
+celery_app = app.extensions["celery"]
