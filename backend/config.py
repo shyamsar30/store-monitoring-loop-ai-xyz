@@ -7,4 +7,4 @@ class Config:
     SWAGGER_UI_URL = "/wherearemyapis"
 
 
-    CURRENT_TIME_UTC = "2023-01-25 18:13:22.479"
+    CURRENT_TIMESTAMP_UTC = "2023-01-25 18:13:22.479"

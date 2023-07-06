@@ -2,19 +2,14 @@ import json
 import traceback
 
 from sqlalchemy import text
-
-from flask import Flask, g
+from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, redirect
 from flask_restx import Api
 
 from backend.celery.config import celery_init_app
 from backend.config import Config
 from backend.database.connector import db_session
 from backend.api.endpoints import namespace
-
-
-def before_request():
-    g.db_session = db_session()
-
 
 class ExtendedApi(Api):
     @property
@@ -40,23 +35,19 @@ def configure_endpoints(app):
 
     restx_api.init_app(app)
 
-    app.before_request(before_request)
-
     return app
 
 
 # Setup Database Connection
 def configure_database(app):
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = Config.DB_URL
+
     try:
         db_session.execute(text("SELECT 1;"))
     except Exception as e:
         traceback.print_exc()
         raise e
-
-    @app.teardown_appcontext
-    def shutdown_session(exception=None):
-        db_session.remove()
-
 
 def configure_celery(app):
 
@@ -64,7 +55,6 @@ def configure_celery(app):
         CELERY=dict(
             broker_url="redis://localhost",
             result_backend="redis://localhost",
-            task_ignore_result=True,
             broker_connection_retry_on_startup=True
         ),
     )
@@ -81,11 +71,17 @@ def init_app():
     configure_database(app)
 
     configure_celery(app)
+
+    @app.route('/')
+    def home():
+        return redirect(Config.SWAGGER_UI_URL)
     
     return app
 
 
 # if __name__ == "__main__":
 app = init_app()
+
+db_session = SQLAlchemy(app)
 
 celery_app = app.extensions["celery"]
